@@ -1,4 +1,4 @@
-program mgpack;
+program Project1;
 
 {$WEAKLINKRTTI ON}
 {$RTTI EXPLICIT METHODS([]) PROPERTIES([]) FIELDS([])}
@@ -15,6 +15,7 @@ uses
 var
   EncryptedFlag, CompressedFlag: Boolean;
   gamekey: TBytes;
+  ArcVersion: LongWord;
 
 function Pad(length: Cardinal; DataAlignment: Cardinal): Cardinal;
 var
@@ -193,7 +194,7 @@ begin
   begin
     index := i mod Length(buffer2);
     b[i] := b[i] xor buffer2[index];
-    buffer2[index] := buffer2[index] + $1B;  //may vary depending on gamekey
+    if ArcVersion=1 then buffer2[index] := buffer2[index] + $1B;  //may vary depending on gamekey
     inc(i)
   end
 end;
@@ -206,7 +207,7 @@ var
   DataCount, LongWord1: LongWord;
   DataPos, DataSize: array of LongWord;
   DataName: array of String;
-  DataNameLength: Byte;
+  DataNameLength, Byte1: Byte;
   FileDirOut: String;
   i: Integer;
 begin
@@ -214,20 +215,38 @@ begin
   try
     FileStream1.ReadBuffer(LongWord1,4);
     if not LongWord1=$4B50474D then begin Writeln('Error: Input file is not a valid MGPK archive file'); Readln; exit end;
-    FileStream1.Position:=8;
+    FileStream1.ReadBuffer(ArcVersion, 4);
     FileStream1.ReadBuffer(DataCount,4);
     if DataCount=0 then begin Writeln('Error: Input file is an empty MGPK archive file'); Readln; exit end;
     SetLength(DataPos, DataCount); SetLength(DataSize, DataCount); SetLength(DataName, DataCount);
     for i:=0 to DataCount-1 do
     begin
-      FileStream1.ReadBuffer(DataNameLength,1);
-      SetLength(StringBytes, DataNameLength);
-      FileStream1.ReadBuffer(PByte(StringBytes)^, DataNameLength);
-      DataName[i]:=TEncoding.UTF8.GetString(StringBytes);
-      FileStream1.Position:=FileStream1.Position-DataNameLength-1 + Pad(DataNameLength+2, $20);
-      FileStream1.ReadBuffer(DataPos[i],4);
-      FileStream1.ReadBuffer(DataSize[i],4);
-      FileStream1.Position:=FileStream1.Position+8;
+      if ArcVersion=1 then begin
+        FileStream1.ReadBuffer(DataNameLength,1);
+        SetLength(StringBytes, DataNameLength);
+        FileStream1.ReadBuffer(PByte(StringBytes)^, DataNameLength);
+        DataName[i]:=TEncoding.UTF8.GetString(StringBytes);
+        FileStream1.Position:=FileStream1.Position-DataNameLength-1 + Pad(DataNameLength+2, $20);
+        FileStream1.ReadBuffer(DataPos[i],4);
+        FileStream1.ReadBuffer(DataSize[i],4);
+        FileStream1.Position:=FileStream1.Position+8;
+      end else begin
+        LongWord1 := FileStream1.Position;
+        SetLength(StringBytes, 0);
+        repeat
+          FileStream1.ReadBuffer(Byte1,1);
+          if not (Byte1=0) then
+          begin
+            SetLength(StringBytes, Length(StringBytes)+1);
+            StringBytes[Length(StringBytes)-1]:=Byte1;
+          end;
+        until (Byte1=0) or (FileStream1.Position=LongWord1+$20);
+        DataName[i]:=TEncoding.UTF8.GetString(StringBytes);
+        FileStream1.Position:=LongWord1+$20;
+        FileStream1.ReadBuffer(DataPos[i],4);
+        FileStream1.Position:=FileStream1.Position+8;
+        FileStream1.ReadBuffer(DataSize[i],4);
+      end;
     end;
 
     if ParamCount<5 then FileDirOut:=ExpandFileName(Copy(ParamStr(4),1,Length(ParamStr(4))-Length(ExtractFileExt(ParamStr(4))))) else FileDirOut:=ParamStr(5);
@@ -289,12 +308,13 @@ begin
   InputFiles:=TDirectory.GetFiles(InputDir, '*', TSearchOption.soTopDirectoryOnly);
   if Length(InputFiles)=0 then begin Writeln('Error: No files found in selected directory'); Readln; exit end;
 
+  if ParamStr(1) = '250,49,151,173,1,93,121,238,101' then ArcVersion := 0 else ArcVersion := 1;
+
   MemoryStream1:=TMemoryStream.Create;
   try
     LongWord1:=$4B50474D;
     MemoryStream1.WriteBuffer(LongWord1,4);
-    LongWord1:=1;
-    MemoryStream1.WriteBuffer(LongWord1,4);
+    MemoryStream1.WriteBuffer(ArcVersion,4);
     LongWord1:=Length(InputFiles);
     MemoryStream1.WriteBuffer(LongWord1,4);
     SetLength(DataLengthPos, LongWord1);
@@ -303,9 +323,14 @@ begin
     begin
       utfstring:=UTF8String(ExtractFileName(InputFiles[z]));
       DataNameLength:=Length(utfstring);
-      MemoryStream1.WriteBuffer(DataNameLength,1);
-      MemoryStream1.WriteBuffer(utfstring[1], DataNameLength);
-      for i:=1 to Pad(DataNameLength+2, $20)-DataNameLength-1 do MemoryStream1.WriteBuffer(ZeroByte,1);
+      if ArcVersion=1 then begin
+        MemoryStream1.WriteBuffer(DataNameLength,1);
+        MemoryStream1.WriteBuffer(utfstring[1], DataNameLength);
+        for i:=1 to Pad(DataNameLength+2, $20)-DataNameLength-1 do MemoryStream1.WriteBuffer(ZeroByte,1);
+      end else begin
+        MemoryStream1.WriteBuffer(utfstring[1], DataNameLength);
+        for i:=1 to Pad(DataNameLength+2, $20)-DataNameLength do MemoryStream1.WriteBuffer(ZeroByte,1);
+      end;
       DataLengthPos[z]:=MemoryStream1.Size;
       for i:=1 to 16 do MemoryStream1.WriteBuffer(ZeroByte,1);
     end;
@@ -324,6 +349,7 @@ begin
             LongWord1:=FileStream1.Size;
             MemoryStream1.WriteBuffer(LongWord1,4);
             LongWord1:=FileStream2.Size;
+            if ArcVersion=0 then MemoryStream1.Position := MemoryStream1.Position + 8;
             MemoryStream1.WriteBuffer(LongWord1,4);
             FileStream1.CopyFrom(FileStream2, FileStream2.Size);
           end else
@@ -338,6 +364,7 @@ begin
               LongWord1:=FileStream1.Size;
               MemoryStream1.WriteBuffer(LongWord1,4);
               LongWord1:=Length(Bytes2);
+              if ArcVersion=0 then MemoryStream1.Position := MemoryStream1.Position + 8;
               MemoryStream1.WriteBuffer(LongWord1,4);
               BytesStream1:=TBytesStream.Create(Bytes2);
               try
@@ -350,6 +377,7 @@ begin
               LongWord1:=FileStream1.Size;
               MemoryStream1.WriteBuffer(LongWord1,4);
               LongWord1:=Length(Bytes1);
+              if ArcVersion=0 then MemoryStream1.Position := MemoryStream1.Position + 8;
               MemoryStream1.WriteBuffer(LongWord1,4);
               BytesStream1:=TBytesStream.Create(Bytes1);
               try
@@ -398,4 +426,3 @@ begin
     if Pos('.', ExtractFileName(ParamStr(4)))=0 then pack else unpack;
   except on E: Exception do begin Writeln('Error: '+E.Message); Readln; exit end end;
 end.
-
