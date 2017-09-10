@@ -266,7 +266,14 @@ begin
       begin
         SetLength(Bytes1, DataSize[i]);
         FileStream1.ReadBuffer(Bytes1[0], DataSize[i]);
-        if EncryptedFlag=True then encodedata(Bytes1);
+
+        if EncryptedFlag=True then begin
+          encodedata(Bytes1);
+          if ArcVersion=0 then
+            if DataName[i] = 'game.dat' then
+              if ParamStr(1) = '250,49,151,173,1,93,121,238,101' then encodedata(Bytes1);
+        end;
+
         if CompressedFlag=True then
         begin
           clzf2_decompress(Bytes1, Bytes2);
@@ -300,7 +307,8 @@ var
   utfstring: UTF8String;
   LongWord1: LongWord;
   DataNameLength: Byte;
-  InputDir, OutputFile: String;
+  Int641: Int64;
+  s, InputDir, OutputFile: String;
   z,i: Integer;
 begin
   InputDir:=ExpandFileName(ParamStr(4));
@@ -362,11 +370,16 @@ begin
             FileStream2.ReadBuffer(Bytes1[0], FileStream2.Size);
             if CompressedFlag=True then
             begin
+              if EncryptedFlag=True then begin
+                SetLength(Bytes2, $16);
+                Move(Bytes1[0], Bytes2[0], $16);
+                s := TEncoding.ASCII.GetString(Bytes2);
+              end;
               clzf2_compress(Bytes1, Bytes2);
-              if EncryptedFlag=True then encodedata(Bytes2);
               MemoryStream1.Position:=DataLengthPos[z];
               LongWord1:=FileStream1.Size;
               MemoryStream1.WriteBuffer(LongWord1,4);
+              if EncryptedFlag=True then if not (s='<RSAKeyValue><Modulus>') then encodedata(Bytes2);
               LongWord1:=Length(Bytes2);
               if ArcVersion=0 then MemoryStream1.Position := MemoryStream1.Position + 8;
               MemoryStream1.WriteBuffer(LongWord1,4);
@@ -404,7 +417,7 @@ var
   i: Integer;
 begin
   try
-    Writeln('Mangagamer MGPK Archive Unpacker/Packer v1.1 by RikuKH3');
+    Writeln('Mangagamer MGPK Archive Unpacker/Packer v1.2 by RikuKH3');
     Writeln('-------------------------------------------------------');
     if ParamCount<4 then begin Writeln('Usage:'+#13#10+'  mgpack.exe <gamekey> enc|dec comp|unc <input file or folder> [output file or folder] [-v1]'+#13#10#13#10+'Known gamekeys:'+#13#10+'  d2b VS Deardrops -Cross the Future-'+#9#9#9+'229,99,174,4,45,166,127,158,69'+#13#10'  Really? Really!'+#9#9#9#9#9+'250,49,151,173,1,93,121,238,101'+#13#10+'  Cartagra, Free Friends, Kara no Shojo 2 (Trial)'+#9+'229,101,186,26,61,198,127,158,70,21,137'+#13#10+'  Kara no Shojo 2'+#9#9#9#9#9+'162,101,186,26,45,198,127,147,70,21,132'+#13#10#13#10+'Example:'+#13#10+'  mgpack.exe 162,101,186,26,45,198,127,147,70,21,132 enc comp "D:\Games\KnS2\GameData\script.pac"'); Readln; exit end;
 
