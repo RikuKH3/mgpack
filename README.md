@@ -3,7 +3,7 @@ Mangagamer MGPK Archive Unpacker/Packer
 Program to unpack and repack '*.pac' files used in Mangagamer releases.
 
 Usage:
-  mgpack.exe <gamekey> enc|dec comp|unc <input file or folder> [output file or folder]
+  mgpack.exe <gamekey> enc|dec comp|unc <input file or folder> [output file or folder] [-v1]
 
 Known gamekeys:
   d2b VS Deardrops -Cross the Future-                   229,99,174,4,45,166,127,158,69
