@@ -307,7 +307,6 @@ var
   utfstring: UTF8String;
   LongWord1: LongWord;
   DataNameLength: Byte;
-  Int641: Int64;
   s, InputDir, OutputFile: String;
   z,i: Integer;
 begin
