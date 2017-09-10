@@ -308,7 +308,9 @@ begin
   InputFiles:=TDirectory.GetFiles(InputDir, '*', TSearchOption.soTopDirectoryOnly);
   if Length(InputFiles)=0 then begin Writeln('Error: No files found in selected directory'); Readln; exit end;
 
-  if ParamStr(1) = '250,49,151,173,1,93,121,238,101' then ArcVersion := 0 else ArcVersion := 1;
+  if (LowerCase(ParamStr(5))='-v1') or (LowerCase(ParamStr(6))='-v1') then ArcVersion := 0 else begin
+    if ParamStr(1) = '250,49,151,173,1,93,121,238,101' then ArcVersion := 0 else ArcVersion := 1;
+  end;
 
   MemoryStream1:=TMemoryStream.Create;
   try
@@ -335,7 +337,9 @@ begin
       for i:=1 to 16 do MemoryStream1.WriteBuffer(ZeroByte,1);
     end;
 
-    if ParamCount<5 then OutputFile:=InputDir+'.pac' else OutputFile:=ParamStr(5);
+    if ParamCount<5 then OutputFile:=InputDir+'.pac' else begin
+      if not (LowerCase(ParamStr(5))='-v1') then OutputFile:=ParamStr(5) else OutputFile:=InputDir+'.pac';
+    end;
     FileStream1:=TFileStream.Create(OutputFile, fmCreate or fmOpenWrite or fmShareDenyWrite);
     try
       FileStream1.Size:=MemoryStream1.Size;
@@ -400,9 +404,9 @@ var
   i: Integer;
 begin
   try
-    Writeln('Mangagamer MGPK Archive Unpacker/Packer v1.0 by RikuKH3');
+    Writeln('Mangagamer MGPK Archive Unpacker/Packer v1.1 by RikuKH3');
     Writeln('-------------------------------------------------------');
-    if ParamCount<4 then begin Writeln('Usage:'+#13#10+'  mgpack.exe <gamekey> enc|dec comp|unc <input file or folder> [output file or folder]'+#13#10#13#10+'Known gamekeys:'+#13#10+'  d2b VS Deardrops -Cross the Future-'+#9#9#9+'229,99,174,4,45,166,127,158,69'+#13#10'  Really? Really!'+#9#9#9#9#9+'250,49,151,173,1,93,121,238,101'+#13#10+'  Cartagra, Free Friends, Kara no Shojo 2 (Trial)'+#9+'229,101,186,26,61,198,127,158,70,21,137'+#13#10+'  Kara no Shojo 2'+#9#9#9#9#9+'162,101,186,26,45,198,127,147,70,21,132'+#13#10#13#10+'Example:'+#13#10+'  mgpack.exe 162,101,186,26,45,198,127,147,70,21,132 enc comp "D:\Games\KnS2\GameData\script.pac"'); Readln; exit end;
+    if ParamCount<4 then begin Writeln('Usage:'+#13#10+'  mgpack.exe <gamekey> enc|dec comp|unc <input file or folder> [output file or folder] [-v1]'+#13#10#13#10+'Known gamekeys:'+#13#10+'  d2b VS Deardrops -Cross the Future-'+#9#9#9+'229,99,174,4,45,166,127,158,69'+#13#10'  Really? Really!'+#9#9#9#9#9+'250,49,151,173,1,93,121,238,101'+#13#10+'  Cartagra, Free Friends, Kara no Shojo 2 (Trial)'+#9+'229,101,186,26,61,198,127,158,70,21,137'+#13#10+'  Kara no Shojo 2'+#9#9#9#9#9+'162,101,186,26,45,198,127,147,70,21,132'+#13#10#13#10+'Example:'+#13#10+'  mgpack.exe 162,101,186,26,45,198,127,147,70,21,132 enc comp "D:\Games\KnS2\GameData\script.pac"'); Readln; exit end;
 
     if LowerCase(ParamStr(2))='enc' then EncryptedFlag:=True else
       if LowerCase(ParamStr(2))='dec' then EncryptedFlag:=False else
