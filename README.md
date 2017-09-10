@@ -14,4 +14,7 @@ Known gamekeys:
 Example:
   mgpack.exe 162,101,186,26,45,198,127,147,70,21,132 enc comp "D:\Games\KnS2\GameData\script.pac"
 
+"Really? Really!" v1.02b hash check fix:
+  in Assembly-CSharp.dll at offset 0x5C736 replace $17 to $2A.
+
 //RikuKH3
